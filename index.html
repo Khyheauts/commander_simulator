@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Simulateur Commander MTG</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0a0a0c;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #e8e0d0;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+:root {
+  --gold: #c9a84c;
+  --gold-light: #e8c97a;
+  --gold-dark: #8a6a1f;
+  --bg-card: #13131a;
+  --bg-input: #1a1a24;
+  --border: rgba(201,168,76,0.3);
+  --border-hover: rgba(201,168,76,0.7);
+  --text: #e8e0d0;
+  --text-muted: #7a7060;
+  --red: #c0392b;
+  --green: #27ae60;
+}
+
+#app {
+  width: 100%;
+  max-width: 680px;
+  background: #0d0d0f;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.app-inner { padding: 24px 24px 0 24px; }
+
+h1 { font-size: 22px; font-weight: 700; color: var(--gold); letter-spacing: 1px; text-align: center; margin-bottom: 6px; }
+
+.subtitle { font-size: 13px; color: var(--text-muted); text-align: center; margin-bottom: 24px; }
+
+.section-title { font-size: 11px; font-weight: 500; color: var(--gold); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+.groups-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+
+.group-card { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.group-name { font-size: 16px; font-weight: 500; color: var(--gold-light); flex: 1; }
+.group-detail { font-size: 13px; color: var(--text-muted); }
+.btn-remove { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; transition: color 0.2s; }
+.btn-remove:hover { color: var(--red); }
+
+.add-form { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.full { grid-column: 1 / -1; }
+label { font-size: 15px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.3px; }
+
+input[type=text], input[type=number] {
+  background: #0d0d0f; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-size: 15px; padding: 7px 10px;
+  width: 100%; outline: none; transition: border-color 0.2s;
+}
+input[type=text]:focus, input[type=number]:focus { border-color: var(--gold); }
+input[type=text]::placeholder, input[type=number]::placeholder {
+  font-style: italic;
+  color: rgba(122, 112, 96, 0.6);
+}
+
+.deck-name-form {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.deck-name-form label { white-space: nowrap; flex-shrink: 0; margin: 0; }
+.deck-name-form input { flex: 1; }
+
+.deck-counter { text-align: center; font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+.deck-counter span { color: var(--gold); font-weight: 500; }
+
+.progress-bar { height: 4px; background: #1a1a24; border-radius: 2px; margin-bottom: 16px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width 0.3s; }
+
+.btn-row { display: flex; gap: 8px; }
+
+button { border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; padding: 8px 16px; transition: all 0.2s; border: 1px solid var(--border); }
+
+.btn-primary { background: var(--gold); border-color: var(--gold); color: #0d0d0f; flex: 1; }
+.btn-primary:hover { background: var(--gold-light); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-simulate { background: transparent; border: 1px solid var(--gold); color: var(--gold); width: 100%; padding: 12px; font-size: 14px; letter-spacing: 1px; margin-top: 8px; }
+.btn-simulate:hover:not(:disabled) { background: rgba(201,168,76,0.1); }
+.btn-simulate:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.error { font-size: 11px; color: #e74c3c; margin-top: 4px; }
+
+.results { margin-top: 20px; }
+
+.result-global { background: var(--bg-input); border: 1px solid var(--gold); border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 16px; }
+.result-global .taux { font-size: 36px; font-weight: 500; color: var(--gold); }
+.result-global .label { font-size: 13px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 8px; }
+
+/* Nom du deck dans les résultats */
+.result-deck-name { font-size: 13px; color: var(--gold-light); letter-spacing: 0.5px; margin-bottom: 4px; }
+
+.stats-row { display: flex; justify-content: center; gap: 24px; margin-top: 8px; }
+.stat { font-size: 14px; }
+.stat .val { font-weight: 500; }
+.stat.success .val { color: var(--green); }
+.stat.failure .val { color: var(--red); }
+
+.details-grid { display: flex; flex-direction: column; gap: 8px; }
+.detail-card { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.detail-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.detail-name { font-size: 14px; font-weight: 500; color: var(--gold-light); }
+.detail-cond { font-size: 13px; color: var(--text-muted); }
+.detail-taux { font-size: 18px; font-weight: 500; color: var(--text); }
+.mini-bar { height: 3px; background: #1a1a24; border-radius: 2px; overflow: hidden; }
+.mini-fill { height: 100%; border-radius: 2px; background: var(--gold); }
+.mini-stats { display: flex; gap: 16px; margin-top: 6px; }
+.mini-stat { font-size: 13px; color: var(--text-muted); }
+.mini-stat span { color: var(--text); }
+
+.loading { text-align: center; padding: 20px; color: var(--gold); font-size: 13px; letter-spacing: 1px; }
+.spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 10px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.footer {
+  background: #13131a;
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.reset-btn { background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 24px; font-size: 13px; flex: 2; text-align: center; }
+.reset-btn:hover { border-color: var(--border-hover); color: var(--text); }
+
+.retry-btn { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 8px 16px; font-size: 13px; flex: 1; text-align: center; white-space: nowrap; }
+.retry-btn:hover { background: rgba(201,168,76,0.1); }
+
+.export-btn { background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 14px; font-size: 12px; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex: 1; justify-content: center; }
+.export-btn:hover { border-color: var(--gold); color: var(--gold); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="app-inner">
+    <h2 style="display:none">Simulateur Monte Carlo pour deck Commander Magic: The Gathering</h2>
+    <h1>Simulateur Commander MTG</h1>
+    <p class="subtitle">Simulation Monte Carlo — 100 000 parties</p>
+
+    <div id="config-panel">
+
+      <!-- Nom du deck (facultatif) -->
+      <div class="deck-name-form">
+        <label>Nom du deck</label>
+        <input type="text" id="inp-deck-name" placeholder="facultatif" />
+      </div>
+
+      <div class="section-title">Groupes de cartes</div>
+      <div class="deck-counter">Cartes renseignées : <span id="total-count">0</span> / 99</div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="groups-list" id="groups-list"></div>
+
+      <div class="add-form" id="add-form">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nom du groupe</label>
+            <input type="text" id="inp-nom" placeholder="ex: Terrains, Combo A, Rampe..." />
+          </div>
+          <div class="form-group">
+            <label>Copies dans le deck</label>
+            <input type="number" id="inp-cartes" placeholder="ex: 36" min="1" />
+          </div>
+          <div class="form-group">
+            <label>Minimum requis en main</label>
+            <input type="number" id="inp-requis" placeholder="ex: 4" min="1" />
+          </div>
+          <div class="form-group full">
+            <label>Tour limite</label>
+            <input type="number" id="inp-tour" placeholder="ex: 6" min="1" />
+          </div>
+        </div>
+        <div id="form-error" class="error"></div>
+        <div class="btn-row">
+          <button class="btn-primary" onclick="ajouterGroupe()">+ Ajouter ce groupe</button>
+        </div>
+      </div>
+      <button class="btn-simulate" id="btn-simulate" onclick="lancerSimulation()" disabled>Lancer la simulation</button>
+    </div>
+
+    <div id="loading-panel" style="display:none">
+      <div class="loading"><span class="spinner"></span>Simulation en cours...</div>
+    </div>
+
+    <div id="results-panel" style="display:none" class="results">
+      <div class="section-title">Résultats</div>
+      <div class="result-global">
+        <!-- Nom du deck affiché dans les résultats si renseigné -->
+        <div class="result-deck-name" id="res-deck-name" style="display:none"></div>
+        <div class="label">Probabilité que toutes les conditions soient remplies</div>
+        <div class="taux" id="res-taux">—</div>
+        <div class="stats-row">
+          <div class="stat success"><span class="val" id="res-succes">—</span> réussites</div>
+          <div class="stat failure"><span class="val" id="res-echecs">—</span> échecs</div>
+        </div>
+      </div>
+      <div class="section-title">Détail par condition</div>
+      <div class="details-grid" id="details-grid"></div>
+    </div>
+  </div>
+
+  <div class="footer" id="footer-bar">
+    <button class="reset-btn" onclick="reset()" id="btn-reset" style="display:none">Nouvelle simulation</button>
+    <button class="retry-btn" onclick="relancerSimulation()" id="btn-retry" style="display:none">Refaire la simulation</button>
+    <button class="export-btn" onclick="exporterTxt()" id="btn-export" style="display:none">
+      ↓ Exporter les résultats (.txt)
+    </button>
+  </div>
+</div>
+
+<script>
+// ── Constantes (identiques v2) ──────────────────────────────
+const SIMULATIONS = 100000;
+const TAILLE_DECK = 99;
+const CARTES_INITIALES = 7;
+
+let groupes = [];
+let derniersResultats = null;
+
+function totalCartes() { return groupes.reduce((s, g) => s + g.nb_cartes, 0); }
+
+function updateCounter() {
+  const t = totalCartes();
+  document.getElementById('total-count').textContent = t;
+  document.getElementById('progress-fill').style.width = (t / TAILLE_DECK * 100) + '%';
+  document.getElementById('btn-simulate').disabled = groupes.length === 0;
+}
+
+function renderGroups() {
+  const el = document.getElementById('groups-list');
+  if (groupes.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = groupes.map((g, i) => `
+    <div class="group-card">
+      <div>
+        <div class="group-name">${g.nom}</div>
+        <div class="group-detail">${g.nb_cartes} copies · min ${g.nb_requis} avant tour ${g.tour_max}</div>
+      </div>
+      <button class="btn-remove" onclick="supprimerGroupe(${i})" title="Supprimer">✕</button>
+    </div>
+  `).join('');
+}
+
+function supprimerGroupe(i) {
+  groupes.splice(i, 1);
+  renderGroups();
+  updateCounter();
+}
+
+function ajouterGroupe() {
+  const nom = document.getElementById('inp-nom').value.trim();
+  const nb_cartes = parseInt(document.getElementById('inp-cartes').value);
+  const nb_requis = parseInt(document.getElementById('inp-requis').value);
+  const tour_max  = parseInt(document.getElementById('inp-tour').value);
+  const errEl = document.getElementById('form-error');
+
+  if (!nom) { errEl.textContent = 'Le nom ne peut pas être vide.'; return; }
+  if (groupes.find(g => g.nom === nom)) { errEl.textContent = `Le groupe "${nom}" existe déjà.`; return; }
+  if (!nb_cartes || nb_cartes < 1) { errEl.textContent = 'Nombre de copies invalide.'; return; }
+  if (!nb_requis || nb_requis < 1 || nb_requis > nb_cartes) { errEl.textContent = `Minimum requis invalide (entre 1 et ${nb_cartes}).`; return; }
+  if (!tour_max || tour_max < 1) { errEl.textContent = 'Tour limite invalide.'; return; }
+  if (totalCartes() + nb_cartes > TAILLE_DECK) { errEl.textContent = `Dépasse 99 cartes. Il reste ${TAILLE_DECK - totalCartes()} place(s).`; return; }
+
+  errEl.textContent = '';
+  groupes.push({ nom, nb_cartes, nb_requis, tour_max });
+  document.getElementById('inp-nom').value = '';
+  document.getElementById('inp-cartes').value = '';
+  document.getElementById('inp-requis').value = '';
+  document.getElementById('inp-tour').value = '';
+  renderGroups();
+  updateCounter();
+}
+
+function construireDeck() {
+  const deck = [];
+  for (const g of groupes) for (let i = 0; i < g.nb_cartes; i++) deck.push(g.nom);
+  const reste = TAILLE_DECK - deck.length;
+  for (let i = 0; i < reste; i++) deck.push('__autre__');
+  return deck;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+// ── Simulation identique v2 ─────────────────────────────────
+function simulerChunk(deck, debut, fin, succes_global, succes_ind) {
+  for (let p = debut; p < fin; p++) {
+    const d = deck.slice();
+    shuffle(d);
+    let ok = true;
+    for (const g of groupes) {
+      const vues = CARTES_INITIALES + g.tour_max;
+      let count = 0;
+      for (let k = 0; k < vues; k++) if (d[k] === g.nom) count++;
+      if (count >= g.nb_requis) succes_ind[g.nom]++;
+      else ok = false;
+    }
+    if (ok) succes_global[0]++;
+  }
+}
+
+function lancerSimulation() {
+  document.getElementById('config-panel').style.display = 'none';
+  document.getElementById('loading-panel').style.display = 'block';
+  document.getElementById('btn-reset').style.display = 'none';
+  document.getElementById('btn-retry').style.display = 'none';
+  document.getElementById('btn-export').style.display = 'none';
+
+  setTimeout(() => {
+    const deck = construireDeck();
+    const succes_global = [0];
+    const succes_ind = {};
+    for (const g of groupes) succes_ind[g.nom] = 0;
+
+    const CHUNK = 5000;
+    let done = 0;
+
+    function runChunk() {
+      const fin = Math.min(done + CHUNK, SIMULATIONS);
+      simulerChunk(deck, done, fin, succes_global, succes_ind);
+      done = fin;
+      if (done < SIMULATIONS) { setTimeout(runChunk, 0); }
+      else { afficherResultats(succes_global[0], succes_ind); }
+    }
+    runChunk();
+  }, 50);
+}
+
+function relancerSimulation() {
+  document.getElementById('results-panel').style.display = 'none';
+  lancerSimulation();
+}
+
+function fmt(n) { return n.toLocaleString('fr-FR'); }
+
+function afficherResultats(sg, si) {
+  document.getElementById('loading-panel').style.display = 'none';
+  document.getElementById('results-panel').style.display = 'block';
+
+  // Affichage du nom du deck si renseigné
+  const nomDeck = document.getElementById('inp-deck-name').value.trim();
+  const resDeckName = document.getElementById('res-deck-name');
+  if (nomDeck) {
+    resDeckName.textContent = 'Résultats du deck — ' + nomDeck;
+    resDeckName.style.display = 'block';
+  } else {
+    resDeckName.style.display = 'none';
+  }
+
+  const taux = (sg / SIMULATIONS * 100);
+  document.getElementById('res-taux').textContent = taux.toFixed(4) + ' %';
+  document.getElementById('res-succes').textContent = fmt(sg);
+  document.getElementById('res-echecs').textContent = fmt(SIMULATIONS - sg);
+
+  const grid = document.getElementById('details-grid');
+  grid.innerHTML = groupes.map(g => {
+    const s = si[g.nom];
+    const t = (s / SIMULATIONS * 100);
+    const pct = Math.min(t, 100);
+    return `
+      <div class="detail-card">
+        <div class="detail-header">
+          <div>
+            <div class="detail-name">${g.nom}</div>
+            <div class="detail-cond">≥ ${g.nb_requis}x avant/au tour ${g.tour_max}</div>
+          </div>
+          <div class="detail-taux">${t.toFixed(4)} %</div>
+        </div>
+        <div class="mini-bar"><div class="mini-fill" style="width:${pct}%"></div></div>
+        <div class="mini-stats">
+          <div class="mini-stat">Réussites : <span>${fmt(s)}</span></div>
+          <div class="mini-stat">Échecs : <span>${fmt(SIMULATIONS - s)}</span></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  derniersResultats = { sg, si, taux };
+
+  document.getElementById('btn-reset').style.display = 'inline-block';
+  document.getElementById('btn-retry').style.display = 'inline-block';
+  document.getElementById('btn-export').style.display = 'inline-flex';
+}
+
+function exporterTxt() {
+  if (!derniersResultats) return;
+  const { sg, si, taux } = derniersResultats;
+
+  // Nom du deck pour le fichier et le contenu
+  const nomDeck = document.getElementById('inp-deck-name').value.trim();
+
+  // Date pour le nom du fichier : format AAAA-MM-JJ
+  const now = new Date();
+  const dateStr = now.getFullYear() + '-'
+    + String(now.getMonth() + 1).padStart(2, '0') + '-'
+    + String(now.getDate()).padStart(2, '0');
+
+  // Nom du fichier : nomdeck_simulation_commander_date.txt (ou juste simulation_commander_date.txt)
+  const prefixe = nomDeck ? nomDeck.replace(/[^a-zA-Z0-9_\-]/g, '_') + '_' : '';
+  const nomFichier = prefixe + 'simulation_commander_' + dateStr + '.txt';
+
+  // Contenu du fichier
+  const dateAffichage = now.toLocaleString('fr-FR');
+  let txt = '';
+  txt += '='.repeat(50) + '\n';
+  txt += '  SIMULATEUR COMMANDER MTG — RÉSULTATS\n';
+  txt += '='.repeat(50) + '\n';
+  if (nomDeck) txt += `Deck : ${nomDeck}\n`;
+  txt += `Date : ${dateAffichage}\n`;
+  txt += `Simulations : ${fmt(SIMULATIONS)}\n\n`;
+  txt += 'CONFIGURATION DU DECK\n';
+  txt += '-'.repeat(40) + '\n';
+  for (const g of groupes) {
+    txt += `${g.nom} : ${g.nb_cartes} copies — min ${g.nb_requis}x avant tour ${g.tour_max}\n`;
+  }
+  const autres = TAILLE_DECK - totalCartes();
+  if (autres > 0) txt += `Autres (non suivies) : ${autres} copies\n`;
+  txt += '\nRÉSULTAT GLOBAL\n';
+  txt += '-'.repeat(40) + '\n';
+  txt += `Réussites : ${fmt(sg)}\n`;
+  txt += `Échecs    : ${fmt(SIMULATIONS - sg)}\n`;
+  txt += `Taux      : ${taux.toFixed(4)} %\n`;
+  txt += '\nDÉTAIL PAR CONDITION\n';
+  txt += '-'.repeat(40) + '\n';
+  for (const g of groupes) {
+    const s = si[g.nom];
+    const t = (s / SIMULATIONS * 100);
+    txt += `\n${g.nom} (>= ${g.nb_requis}x avant/au tour ${g.tour_max})\n`;
+    txt += `  Réussites : ${fmt(s)}\n`;
+    txt += `  Échecs    : ${fmt(SIMULATIONS - s)}\n`;
+    txt += `  Taux      : ${t.toFixed(4)} %\n`;
+  }
+  txt += '\n' + '='.repeat(50) + '\n';
+
+  const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomFichier;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function reset() {
+  groupes = [];
+  derniersResultats = null;
+  document.getElementById('results-panel').style.display = 'none';
+  document.getElementById('config-panel').style.display = 'block';
+  document.getElementById('btn-reset').style.display = 'none';
+  document.getElementById('btn-retry').style.display = 'none';
+  document.getElementById('btn-export').style.display = 'none';
+  document.getElementById('inp-deck-name').value = '';
+  renderGroups();
+  updateCounter();
+}
+
+document.getElementById('inp-tour').addEventListener('keydown', e => {
+  if (e.key === 'Enter') ajouterGroupe();
+});
+</script>
+</body>
+</html>
